@@ -11,26 +11,30 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""from https://www.tensorflow.org/tutorials/generative/deepdream"""
+# first load image and turn into np.array and load Googles DeepDream model (InceptionV3 has pretrained models named mix1 to mix10, where rising numbers responde 
+# to more complex image details, here I decided for a mix of 1,6 and 9 because i prefere elements like shape and borders to maintain more or loss
+# find Inception Model here: https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
 
-img = tf.keras.preprocessing.image.load_img(r'deepdream2.jpg', target_size=(225, 375))
+img = tf.keras.preprocessing.image.load_img(r'Ocean.jpg', target_size=(225, 375))
 img = np.array(img)
 base_model = tf.keras.applications.InceptionV3(include_top=False, weights='imagenet')
+
 # Maximize the activations of these layers
-names = ['mixed1', 'mixed4', 'mixed9']
+names = ['mixed1', 'mixed6', 'mixed9']
 layers = [base_model.get_layer(name).output for name in names]
 
-# Create the feature extraction model
+# Create the model for the freatures
 dream_model = tf.keras.Model(inputs=base_model.input, outputs=layers)
 
 def calc_loss(img, model):
-  # Pass forward the image through the model to retrieve the activations.
-  # Converts the image into a batch of size 1.
+# add one dimension so the tensor fits with the layers, converti image to batch_size = 1 and let image run trough the model to get the activations
+    
   img_batch = tf.expand_dims(img, axis=0)
   layer_activations = model(img_batch)
   if len(layer_activations) == 1:
     layer_activations = [layer_activations]
 
+# the idea behind the trippy image is to INCREASE the loss:
   losses = []
   for act in layer_activations:
     loss = tf.math.reduce_mean(act)
@@ -39,15 +43,12 @@ def calc_loss(img, model):
   return  tf.reduce_sum(losses)
 
 
-
-
-
-
+#############################
+# first we can creata a basic function for the deep dream model. The outcome though will seem more like applied in top of the image with little actual
+# iteraction with it's components
 
 """Basic Deep Dream"""
 
-import time
-start = time.time()
 class DeepDream(tf.Module):
   def __init__(self, model):
     self.model = model
@@ -63,14 +64,12 @@ class DeepDream(tf.Module):
       loss = tf.constant(0.0)
       for n in tf.range(steps):
         with tf.GradientTape() as tape:
-          # This needs gradients relative to `img`
-          # `GradientTape` only watches `tf.Variable`s by default
           tape.watch(img)
           loss = calc_loss(img, self.model)
         # Calculate the gradient of the loss with respect to the pixels of the input image.
         gradients = tape.gradient(loss, img)
 
-        # Normalize the gradients.
+        # Standard normalization of gradients.
         gradients /= tf.math.reduce_std(gradients) + 1e-8
         img = img + gradients*step_size
         img = tf.clip_by_value(img, -1, 1)
@@ -79,6 +78,7 @@ class DeepDream(tf.Module):
 
 deepdream = DeepDream(dream_model)
 
+# define the backtransformation form the matrix into an image
 import IPython.display as display
 import PIL.Image
 # Normalize an image
@@ -97,6 +97,8 @@ def run_deep_dream_simple(img, steps=300, step_size=0.01):
   step_size = tf.convert_to_tensor(step_size)
   steps_remaining = steps
   step = 0
+
+    #print the interim results every 100 steps
   while steps_remaining:
     if steps_remaining>100:
       run_steps = tf.constant(100)
@@ -127,7 +129,8 @@ dream_img = run_deep_dream_simple(img=img,
 
 
 
-
+#########################
+To geta´a better result, we can 
 """Deep Dream with Tiled Gradients
 
 """
@@ -232,7 +235,7 @@ display.clear_output(wait=True)
 img = tf.image.resize(img, base_shape)
 img = tf.image.convert_image_dtype(img/255.0, dtype=tf.uint8)
 show(img)
-img = img.save('DeepDream.jpg')
+img = img.save('Ocean_Dream.jpg')
 
 
 
