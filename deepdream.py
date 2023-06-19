@@ -130,22 +130,22 @@ dream_img = run_deep_dream_simple(img=img,
 
 
 #########################
-To geta´a better result, we can 
-"""Deep Dream with Tiled Gradients
-
-"""
+#To geta a better result, we can modify gradient descent. With smaller gradient descent, smaller details of the image will get included into the transformation.
+# to increase compiling speed (or make the computer not run forever) the picture can get scaled down for gradient descent and afterwards scaled up (it' called octave)
+# plus split the image into parts, so the code also executed in an exeptable time for bigger images
 
 import IPython.display as display
 import PIL.Image
-# Normalize an image
+# Normalize image
 def deprocess(img):
   img = 255*(img + 1.0)/2.0
   return tf.cast(img, tf.uint8)
 
-# Display an image
+# Display image
 def show(img):
   display.display(PIL.Image.fromarray(np.array(img)))
 
+# split image into part with tensorflows random rolling function
 def random_roll(img, maxroll):
   # Randomly shift the image to avoid sharp boundaries.
   shift = tf.random.uniform(shape=[2], minval=-maxroll, maxval=maxroll, dtype=tf.int32)
