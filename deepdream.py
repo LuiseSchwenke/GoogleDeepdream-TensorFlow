@@ -11,9 +11,9 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
-# first load image and turn into np.array and load Googles DeepDream model (InceptionV3 has pretrained models named mix1 to mix10, where rising numbers responde 
-# to more complex image details, here I decided for a mix of 1,6 and 9 because i prefere elements like shape and borders to maintain more or loss
-# find Inception Model here: https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
+# load image and turn into np.array and load Googles DeepDream model (InceptionV3 has pretrained models (mix1 - mix10, --> rising numbers responde 
+# to more complex image details),
+# Inception Model here: https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
 
 img = tf.keras.preprocessing.image.load_img(r'Ocean.jpg', target_size=(225, 375))
 img = np.array(img)
@@ -27,14 +27,14 @@ layers = [base_model.get_layer(name).output for name in names]
 dream_model = tf.keras.Model(inputs=base_model.input, outputs=layers)
 
 def calc_loss(img, model):
-# add one dimension so the tensor fits with the layers, converti image to batch_size = 1 and let image run trough the model to get the activations
+# add one dimension so the tensor fits with the layers, convert image to batch_size = 1 and let image run trough the model to get the activations
     
   img_batch = tf.expand_dims(img, axis=0)
   layer_activations = model(img_batch)
   if len(layer_activations) == 1:
     layer_activations = [layer_activations]
 
-# the idea behind the trippy image is to INCREASE the loss:
+# INCREASE the loss:
   losses = []
   for act in layer_activations:
     loss = tf.math.reduce_mean(act)
@@ -44,8 +44,7 @@ def calc_loss(img, model):
 
 
 #############################
-# first we can creata a basic function for the deep dream model. The outcome though will seem more like applied in top of the image with little actual
-# iteraction with it's components
+# basic function for the deep dream model but outcome looks like applied on top of the image with little actual iteraction with it's components
 
 """Basic Deep Dream"""
 
@@ -86,7 +85,7 @@ def deprocess(img):
   img = 255*(img + 1.0)/2.0
   return tf.cast(img, tf.uint8)
 
-# Display an image
+# Display image
 def show(img):
   display.display(PIL.Image.fromarray(np.array(img)))
 
@@ -130,8 +129,8 @@ dream_img = run_deep_dream_simple(img=img,
 
 
 #########################
-#To geta a better result, we can modify gradient descent. With smaller gradient descent, smaller details of the image will get included into the transformation.
-# to increase compiling speed (or make the computer not run forever) the picture can get scaled down for gradient descent and afterwards scaled up (it' called octave)
+#For better result modify gradient descent. With smaller gradient descent --> smaller details of the image get included into the transformation.
+# to increase compiling speed sclae down picture for gradient descent and afterwards scaled up/ octave
 # plus split the image into parts, so the code also executed in an exeptable time for bigger images
 
 import IPython.display as display
@@ -145,9 +144,9 @@ def deprocess(img):
 def show(img):
   display.display(PIL.Image.fromarray(np.array(img)))
 
-# split image into part with tensorflows random rolling function
+# split image with random rolling 
 def random_roll(img, maxroll):
-  # Randomly shift the image to avoid sharp boundaries.
+  # Randomly shift the image to avoid sharp boundaries
   shift = tf.random.uniform(shape=[2], minval=-maxroll, maxval=maxroll, dtype=tf.int32)
   img_rolled = tf.roll(img, shift=shift, axis=[0,1]) # change to 2,0
   return shift, img_rolled
@@ -167,10 +166,10 @@ class TiledGradients(tf.Module):
   def __call__(self, img, img_size, tile_size=512):
     shift, img_rolled = random_roll(img, tile_size)
 
-    # Initialize the image gradients to zero.
+    # Initialize the image gradients to zero
     gradients = tf.zeros_like(img_rolled)
 
-    # Skip the last tile, unless there's only one tile.
+    # Skip the last tile, unless there's only one tile
     xs = tf.range(0, img_size[1], tile_size)[:-1]
     if not tf.cast(len(xs), bool):
       xs = tf.constant([0])
@@ -180,23 +179,23 @@ class TiledGradients(tf.Module):
 
     for x in xs:
       for y in ys:
-        # Calculate the gradients for this tile.
+        # Calculate the gradients for this tile
         with tf.GradientTape() as tape:
           # This needs gradients relative to `img_rolled`.
           # `GradientTape` only watches `tf.Variable`s by default.
           tape.watch(img_rolled)
 
-          # Extract a tile out of the image.
+          # Extract a tile out of the image
           img_tile = img_rolled[y:y+tile_size, x:x+tile_size]
           loss = calc_loss(img_tile, self.model)
 
-        # Update the image gradients for this tile.
+        # Update the image gradients for this tile
         gradients = gradients + tape.gradient(loss, img_rolled)
 
-    # Undo the random shift applied to the image and its gradients.
+    # Undo the random shift applied to the image and its gradients
     gradients = tf.roll(gradients, shift=-shift, axis=[0,1])
 
-    # Normalize the gradients.
+    # Normalize the gradients
     gradients /= tf.math.reduce_std(gradients) + 1e-8
 
     return gradients
